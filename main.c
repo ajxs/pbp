@@ -65,7 +65,7 @@ int SDLinit() {
 		return 0;
 	}
 
-	_window = SDL_CreateWindow("Simulated Annealing square plotter!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowWidth, _windowHeight, SDL_WINDOW_SHOWN);
+	_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowWidth, _windowHeight, SDL_WINDOW_SHOWN);
 	if(!_window) {
 		SDLerror("SDL_CreateWindow error: %s\n", SDL_GetError());
 		return 0;
