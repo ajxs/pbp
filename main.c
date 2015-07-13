@@ -33,7 +33,7 @@ Uint32 *_main_pixelData_ptr;
 char filenameBuffer[20];
 
 const Uint8 _squaresPerCycle = 50;	// number of square plotting cycles per frame.
-const Uint8 squareMaxSize = 6;
+const Uint8 squareMaxSize = 5;
 const Uint8 squareMinSize = 1;
 
 void SDLFreeSurfaces() {
