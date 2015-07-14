@@ -1,0 +1,45 @@
+<html>
+	<head>
+		<script type="text/javascript" src="main.js"></script>
+		<link href='http://fonts.googleapis.com/css?family=Oswald' rel='stylesheet' type='text/css'>
+		<link rel="stylesheet" type="text/css" href="main.css"/>
+	</head>
+	<body onload="main_init()">
+		<div id="main">
+			<div id="header">
+				<a href="">ajxs</a> / <a href="https://github.com/ajxs/pbp">pbpJS</a>
+			</div>
+			<div class="section">
+				<div class="sectionTitle">Procedural Block Painter</div>
+				This program procedurally recreates an image by testing randomly sized and colored rectangles, at random coordinates to determine if their placement would bring the current copy closer to resembling the original source image.
+				This experiment was inspired by Roger Alsing's Simulated Annealing experiments in genetic programming. Although this program itself does not actually use genetic programming, since it doesn't technically save an image DNA string, and it's not simulated annealing since the algorithm doesn't have any sort of temperature tracking. However it does share characteristics with both.<br/>
+				This page shows the Javascript version of the app, the original was written in C and SDL and can be found on it's <a href="https://github.com/ajxs/pbp">github page</a>.<br/>
+			</div>
+			
+			<div id="imgContainer">
+				<canvas class="imgCanvas" id="srcCanvas"></canvas>
+				<canvas class="imgCanvas" id="mainCanvas"></canvas>
+			</div>
+			<div id="controls" class="section">
+				<div id="controls_images" class="clearFix">
+					<div class="sectionTitle">Sample Images</div>
+					<img id="img_1" onclick="handleImgSelect(this)" src="img/1.png"/>
+					<img id="img_5" onclick="handleImgSelect(this)" src="img/5.png"/>
+					<img id="img_6" onclick="handleImgSelect(this)" src="img/6.png"/>
+					<img id="img_4" onclick="handleImgSelect(this)" src="img/4.png"/>
+					<img id="img_8" onclick="handleImgSelect(this)" src="img/8.png"/>
+					<img id="img_7" onclick="handleImgSelect(this)" src="img/7.png"/>
+				</div>
+				<div id="controls_file">
+					<div class="sectionTitle">Upload File</div>
+					<input type="file" style="display: none;" id="fileInput" onchange="loadFile(this.files)"/>
+					<div id="browseButton" onclick="handleFileInput()">Upload File</div>
+					<div id="fileInfo"></div>
+				</div>
+				
+			</div>
+		</div>
+	</body>
+
+
+</html>

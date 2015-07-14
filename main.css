@@ -1,0 +1,113 @@
+.clearFix:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+#imgContainer {
+	margin-top: 20px;
+	margin-bottom: 20px;
+	width: 1024px;
+}
+
+
+#imgContainer canvas {
+	max-width: 500px;
+	max-height: 500px;
+	margin-right: 10px;
+    -webkit-transition: all 1s;
+    transition: all 1s;
+}
+
+#header {
+	font-family: 'Oswald', sans-serif;
+	font-size: 64px;
+	letter-spacing: -4px;
+}
+
+
+#header a {
+	color: #000000;
+	text-decoration: none;
+    -webkit-transition: all 0.25s;
+    transition: all 0.25s;
+}
+
+#header a:hover {
+	color: rgb(100,100,100);
+}
+
+
+.sectionTitle {
+	font-family: 'Oswald', sans-serif;
+	font-size: 24px;
+}
+
+.section {
+	width: 1024px;
+	margin-top: 20px;
+	background-color: rgb(230,230,230);
+	font-family: 'Open Sans Condensed', sans-serif;
+	font-size: 14px;
+	letter-spacing: normal;	
+	padding: 6px;
+}
+
+.section a {
+	color: rgb(20,20,20);
+}
+
+.section a:hover {
+	color: rgb(60,60,60);
+}
+
+
+
+#controls {
+
+}
+
+#controls_images {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+#controls_images img {
+	border: solid 3px #000000;
+	float: left;
+	max-width: 160px;
+	max-height: 140px;
+	margin-right: 6px;
+	margin-top: 6px;
+	cursor: pointer;
+}
+
+#controls_file {
+	margin-top: 20px;
+	margin-bottom: 10px;
+}
+
+#browseButton {
+	margin-top: 20px;
+	margin-left: 10px;
+	font-family: 'Oswald', sans-serif;
+	font-size: 18px;
+	color: rgb(230,230,230);
+	width: 100px;
+	padding: 4px;
+	text-align: center;
+	background-color: rgb(60,60,60);
+	cursor: pointer;
+    -webkit-transition: all 0.25s;
+    transition: all 0.25s;
+}
+
+#browseButton:hover {
+	background-color: rgb(120,120,120);
+}
+
+#fileInfo {
+	margin: 14px;
+	font-family: 'Oswald', sans-serif;
+	font-size: 14px;
+}
