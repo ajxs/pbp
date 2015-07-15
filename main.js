@@ -3,7 +3,6 @@ var img_width, img_height;
 var srcCanvas, mainCanvas;
 var srcContext, mainContext;
 
-var _fileReader = new FileReader();
 var urlCreator = window.URL || window.webkitURL;
 
 var _x,_y, _width, _height, _color, _srcData, _mainData, _testSum, _mainSum, _dataLength;
@@ -68,20 +67,13 @@ function handleImgSelect(img) {
 function loadFile(files) {
 	if(!files[0].type.match('image.*'))  return false;
 	
-	_fileReader.readAsArrayBuffer(files[0]);
-	document.getElementById('fileInfo').innerHTML = files[0].name;
-	_fileReader.onload = function(e) {
-		var dataURL = urlCreator.createObjectURL(new Blob( [new Uint8Array(_fileReader.result)], {
-			type: "image/png"
-		} ));
-
-		var img = new Image();
-		img.onload = function() {
-			handleImgSelect(img);
-		};
-		
-		img.src = dataURL;
-	}
+	var img = new Image();
+	img.onload = function() {
+		handleImgSelect(img);
+	};
+	
+	img.src = urlCreator.createObjectURL(files[0]);	
+	
 };
 
 
