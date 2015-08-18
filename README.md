@@ -1,4 +1,7 @@
 # pbp
+
+Live Javascript implementation available at http://ajxs.github.io/pbp/
+
 Procedural Block Painter. Experiments in procedural art generation.
 This program procedurally recreates an image by testing randomly sized and colored rectangles, at random coordinates to determine if their placement would bring the current copy closer to resembling the original source image.
 This experiment was inspired by Roger Alsing's Simulated Annealing experiments in genetic programming. Although this program itself does not actually use genetic programming, since it doesn't technically save an image DNA string, and it's not simulated annealing since the algorithm doesn't have any sort of temperature tracking. However it does share characteristics with both.
