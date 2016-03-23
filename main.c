@@ -5,7 +5,12 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-const Uint16 _windowWidth = 1024, _windowHeight = 768;
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
+#define SQUARES_PER_CYCLE 50	// number of square plotting cycles per frame.
+#define SQUARE_MAX_SIZE 5
+#define SQUARE_MIN_SIZE 1
+
 Uint8 _quit = 0;
 
 SDL_Window *_window = NULL;
@@ -32,20 +37,15 @@ Uint32 *_main_pixelData_ptr;
 
 char filenameBuffer[20];
 
-const Uint8 _squaresPerCycle = 50;	// number of square plotting cycles per frame.
-const Uint8 squareMaxSize = 5;
-const Uint8 squareMinSize = 1;
-
 void SDLFreeSurfaces() {
 	SDL_FreeSurface(srcSurface);
 	SDL_FreeSurface(mainSurface);
+	SDL_FreeSurface(_screen);
 };
 
 
 void SDLQuit() {
 	SDLFreeSurfaces();
-
-	SDL_FreeSurface(_screen);
 	SDL_DestroyWindow(_window);
 	SDL_Quit();
 };
@@ -53,7 +53,7 @@ void SDLQuit() {
 
 void SDLerror(const char *fmt, ...) {
 	va_list args;
-  va_start(args, fmt);
+	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
 	va_end(args);
 };
@@ -65,15 +65,10 @@ int SDLinit() {
 		return 0;
 	}
 
-	_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowWidth, _windowHeight, SDL_WINDOW_SHOWN);
-	if(!_window) {
-		SDLerror("SDL_CreateWindow error: %s\n", SDL_GetError());
-		return 0;
-	}
-
-    _screen = SDL_GetWindowSurface(_window);
-	if(!_screen) {
-		SDLerror("SDL_GetWindowSurface error: %s\n", SDL_GetError());
+	_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+	_screen = SDL_GetWindowSurface(_window);
+	if(!_screen || !_window) {
+		SDLerror("SDLinit: error: %s\n", SDL_GetError());
 		return 0;
 	}
 
@@ -88,35 +83,33 @@ SDL_Surface *main_loadSurface(char *file) {
 
 void input() {
 	while(SDL_PollEvent(&_event)) {
-
-        switch(_event.type) {
-        	case SDL_QUIT:
-        		_quit = 1;
-        		break;
-            case SDL_KEYDOWN:
-            	switch(_event.key.keysym.sym) {
-                    case SDLK_ESCAPE:
-                        _quit = 1;
-                        break;
-                    case SDLK_F12:
-                    	sprintf(filenameBuffer, "%i_%i.bmp", (int)time(NULL),SDL_GetTicks());	// prints screenshot with name format <date>_<getTicks>.bmp
-                    	SDL_SaveBMP(mainSurface,filenameBuffer);
-                    	break;
-            	}
-            	break;
-        }
-
+		switch(_event.type) {
+			case SDL_QUIT:
+				_quit = 1;
+				break;
+			case SDL_KEYDOWN:
+				switch(_event.key.keysym.sym) {
+					case SDLK_ESCAPE:
+						_quit = 1;
+						break;
+					case SDLK_F12:
+						sprintf(filenameBuffer, "%i_%i.bmp", (int)time(NULL),SDL_GetTicks());	// prints screenshot with name format <date>_<getTicks>.bmp
+						SDL_SaveBMP(mainSurface,filenameBuffer);
+						break;
+					}
+				break;
+		}
 	}
 };
 
 Uint8 _cycleIt;	// iterator - cycles per frame.
 void update() {
-	for(_cycleIt = 0; _cycleIt < _squaresPerCycle; _cycleIt++) {
+	for(_cycleIt = 0; _cycleIt < SQUARES_PER_CYCLE; _cycleIt++) {
 		randomRect.x = rand()%srcWidth;
 		randomRect.y = rand()%srcHeight;
 
-		randomRect.w = squareMinSize+rand()%squareMaxSize;
-		randomRect.h = squareMinSize+rand()%squareMaxSize;
+		randomRect.w = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
+		randomRect.h = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
 
 		_r = rand()%255;
 		_g = rand()%255;
@@ -148,13 +141,13 @@ void render_scaled() {
 	SDL_BlitScaled(srcSurface,NULL,_screen,&srcSurface_rect);
 	SDL_BlitScaled(mainSurface,NULL,_screen,&mainSurface_rect);
 	SDL_UpdateWindowSurface(_window);
-}
+};
 
 void render_normal() {
 	SDL_BlitSurface(srcSurface,NULL,_screen,&srcSurface_rect);
 	SDL_BlitSurface(mainSurface,NULL,_screen,&mainSurface_rect);
 	SDL_UpdateWindowSurface(_window);
-}
+};
 
 
 int main(int argc, char *argv[]) {
@@ -214,5 +207,5 @@ int main(int argc, char *argv[]) {
 
 	SDLQuit();
 	return 0;
-	
-}
+
+};
