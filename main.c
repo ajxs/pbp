@@ -124,7 +124,7 @@ void update() {
 				SDL_GetRGB( _src_pixelData_ptr[ (randomRect.y + ih) * srcSurface->w + (randomRect.x + iw) ], srcSurface->format,&sr,&sg,&sb);
 				SDL_GetRGB( _main_pixelData_ptr[ (randomRect.y + ih) * mainSurface->w + (randomRect.x + iw) ], mainSurface->format,&mr,&mg,&mb);
 
-				testSum += abs(sr - _r) + abs(sg - _g) + abs(sg - _b);
+				testSum += abs(sr - _r) + abs(sg - _g) + abs(sb - _b);
 				mainSum += abs(sr - mr) + abs(sg - mg) + abs(sb - mb);
 
 			}
@@ -168,8 +168,6 @@ int main(int argc, char *argv[]) {
 		SDLQuit();
 		exit(1);
 	}
-
-	Uint32 start = SDL_GetTicks();
 
 	mainSurface = SDL_CreateRGBSurface(0, srcSurface->w, srcSurface->h, 32, 0, 0, 0, 0);
 	srcSurface = SDL_ConvertSurface(srcSurface, mainSurface->format, 0);
