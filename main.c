@@ -23,8 +23,6 @@ SDL_Surface *mainSurface;
 
 SDL_Rect srcSurface_rect, mainSurface_rect, randomRect;
 
-Uint16 srcWidth, srcHeight;
-
 Uint16 mainSum, testSum;
 
 Uint32 _color;
@@ -76,11 +74,6 @@ int SDLinit() {
 };
 
 
-SDL_Surface *main_loadSurface(char *file) {
-	return IMG_Load(file);
-};
-
-
 void input() {
 	while(SDL_PollEvent(&_event)) {
 		switch(_event.type) {
@@ -105,11 +98,10 @@ void input() {
 Uint8 _cycleIt;	// iterator - cycles per frame.
 void update() {
 	for(_cycleIt = 0; _cycleIt < SQUARES_PER_CYCLE; _cycleIt++) {
-		randomRect.x = rand()%srcWidth;
-		randomRect.y = rand()%srcHeight;
-
 		randomRect.w = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
 		randomRect.h = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
+		randomRect.x = rand()%(srcSurface->w - randomRect.w);
+		randomRect.y = rand()%(srcSurface->h - randomRect.h);
 
 		_r = rand()%255;
 		_g = rand()%255;
@@ -120,13 +112,16 @@ void update() {
 
 		for(ih = 0; ih < randomRect.h; ih++) {
 			for(iw = 0; iw < randomRect.w; iw++) {
+				SDL_GetRGB(((Uint32*)srcSurface->pixels)[(randomRect.y + ih) * srcSurface->w + (randomRect.x + iw)],
+					srcSurface->format,
+					&sr,&sg,&sb);
 
-				SDL_GetRGB( _src_pixelData_ptr[ (randomRect.y + ih) * srcSurface->w + (randomRect.x + iw) ], srcSurface->format,&sr,&sg,&sb);
-				SDL_GetRGB( _main_pixelData_ptr[ (randomRect.y + ih) * mainSurface->w + (randomRect.x + iw) ], mainSurface->format,&mr,&mg,&mb);
+				SDL_GetRGB(((Uint32*)mainSurface->pixels)[(randomRect.y + ih) * srcSurface->w + (randomRect.x + iw)],
+				 	mainSurface->format,
+					&mr,&mg,&mb);
 
 				testSum += abs(sr - _r) + abs(sg - _g) + abs(sb - _b);
 				mainSum += abs(sr - mr) + abs(sg - mg) + abs(sb - mb);
-
 			}
 		}
 
@@ -138,13 +133,11 @@ void update() {
 void (*render)();	//function pointer for render so that the program only uses the slower BlitScaled if the Surfaces are actually scaled.
 
 void render_scaled() {
-	SDL_BlitScaled(srcSurface,NULL,_screen,&srcSurface_rect);
 	SDL_BlitScaled(mainSurface,NULL,_screen,&mainSurface_rect);
 	SDL_UpdateWindowSurface(_window);
 };
 
 void render_normal() {
-	SDL_BlitSurface(srcSurface,NULL,_screen,&srcSurface_rect);
 	SDL_BlitSurface(mainSurface,NULL,_screen,&mainSurface_rect);
 	SDL_UpdateWindowSurface(_window);
 };
@@ -162,8 +155,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	srcSurface = main_loadSurface(argv[1]);
-	if(!srcSurface) {
+	if(!(srcSurface = IMG_Load(argv[1]), srcSurface)) {
 		SDLerror("File could not be opened!\n");
 		SDLQuit();
 		exit(1);
@@ -172,22 +164,16 @@ int main(int argc, char *argv[]) {
 	mainSurface = SDL_CreateRGBSurface(0, srcSurface->w, srcSurface->h, 32, 0, 0, 0, 0);
 	srcSurface = SDL_ConvertSurface(srcSurface, mainSurface->format, 0);
 
-	_src_pixelData_ptr = (Uint32 *)srcSurface->pixels;	// pointers to the pixel data for both surfaces.
-	_main_pixelData_ptr = (Uint32 *)mainSurface->pixels;
-
-	srcWidth = srcSurface->w;
-	srcHeight = srcSurface->h;
-
 	srcSurface_rect.x = 10;
 	srcSurface_rect.y = 10;
 
-	if(srcWidth > 500) {	// image scaling to fit on screen.
+	if(srcSurface->w > 500) {	// image scaling to fit on screen.
 		srcSurface_rect.w = 500;
-		srcSurface_rect.h = (srcHeight * (500.0f / srcWidth));
+		srcSurface_rect.h = (srcSurface->h * (500.0f / srcSurface->w));
 		render = render_scaled;
 	} else {
-		srcSurface_rect.w = srcWidth;
-		srcSurface_rect.h = srcHeight;
+		srcSurface_rect.w = srcSurface->w;
+		srcSurface_rect.h = srcSurface->h;
 		render = render_normal;
 	}
 
@@ -196,6 +182,8 @@ int main(int argc, char *argv[]) {
 
 	mainSurface_rect.w = srcSurface_rect.w;
 	mainSurface_rect.h = srcSurface_rect.h;
+
+	SDL_BlitSurface(srcSurface,NULL,_screen,&srcSurface_rect);		// blit srcSurface once here since it never actually changes
 
 	while(!_quit) {
 		input();
