@@ -17,21 +17,17 @@ SDL_Window *_window = NULL;
 SDL_Event _event;
 
 SDL_Surface *_screen;
-
-SDL_Surface *srcSurface;
-SDL_Surface *mainSurface;
+SDL_Surface *srcSurface, *mainSurface;
 
 SDL_Rect srcSurface_rect, mainSurface_rect, randomRect;
 
 Uint16 mainSum, testSum;
-
-Uint32 _color;
 Uint8 _r, _g, _b, sr, sg, sb, mr, mg, mb;
+Uint8 _cycleIt;	// iterator - cycles per frame.
+Uint16 _rangeX, _rangeY;
+Uint8 _changedState = 0;
 
 Uint16 iw, ih;
-
-Uint32 *_src_pixelData_ptr;
-Uint32 *_main_pixelData_ptr;
 
 char filenameBuffer[20];
 
@@ -74,62 +70,6 @@ int SDLinit() {
 };
 
 
-void input() {
-	while(SDL_PollEvent(&_event)) {
-		switch(_event.type) {
-			case SDL_QUIT:
-				_quit = 1;
-				break;
-			case SDL_KEYDOWN:
-				switch(_event.key.keysym.sym) {
-					case SDLK_ESCAPE:
-						_quit = 1;
-						break;
-					case SDLK_F12:
-						sprintf(filenameBuffer, "%i_%i.bmp", (int)time(NULL),SDL_GetTicks());	// prints screenshot with name format <date>_<getTicks>.bmp
-						SDL_SaveBMP(mainSurface,filenameBuffer);
-						break;
-					}
-				break;
-		}
-	}
-};
-
-Uint8 _cycleIt;	// iterator - cycles per frame.
-void update() {
-	for(_cycleIt = 0; _cycleIt < SQUARES_PER_CYCLE; _cycleIt++) {
-		randomRect.w = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
-		randomRect.h = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
-		randomRect.x = rand()%(srcSurface->w - randomRect.w);
-		randomRect.y = rand()%(srcSurface->h - randomRect.h);
-
-		_r = rand()%255;
-		_g = rand()%255;
-		_b = rand()%255;
-
-		testSum = 0;
-		mainSum = 0;
-
-		for(ih = 0; ih < randomRect.h; ih++) {
-			for(iw = 0; iw < randomRect.w; iw++) {
-				SDL_GetRGB(((Uint32*)srcSurface->pixels)[(randomRect.y + ih) * srcSurface->w + (randomRect.x + iw)],
-					srcSurface->format,
-					&sr,&sg,&sb);
-
-				SDL_GetRGB(((Uint32*)mainSurface->pixels)[(randomRect.y + ih) * srcSurface->w + (randomRect.x + iw)],
-				 	mainSurface->format,
-					&mr,&mg,&mb);
-
-				testSum += abs(sr - _r) + abs(sg - _g) + abs(sb - _b);
-				mainSum += abs(sr - mr) + abs(sg - mg) + abs(sb - mb);
-			}
-		}
-
-		if(testSum < mainSum) SDL_FillRect(mainSurface, &randomRect, SDL_MapRGB(mainSurface->format, _r, _g, _b));
-	}
-};
-
-
 void (*render)();	//function pointer for render so that the program only uses the slower BlitScaled if the Surfaces are actually scaled.
 
 void render_scaled() {
@@ -141,7 +81,6 @@ void render_normal() {
 	SDL_BlitSurface(mainSurface,NULL,_screen,&mainSurface_rect);
 	SDL_UpdateWindowSurface(_window);
 };
-
 
 int main(int argc, char *argv[]) {
 	if(!SDLinit()) {
@@ -186,9 +125,61 @@ int main(int argc, char *argv[]) {
 	SDL_BlitSurface(srcSurface,NULL,_screen,&srcSurface_rect);		// blit srcSurface once here since it never actually changes
 
 	while(!_quit) {
-		input();
-		update();
-		render();
+		while(SDL_PollEvent(&_event)) {		// poll input
+			switch(_event.type) {
+				case SDL_QUIT:
+					_quit = 1;
+					break;
+				case SDL_KEYDOWN:
+					switch(_event.key.keysym.sym) {
+						case SDLK_ESCAPE:
+							_quit = 1;
+							break;
+						case SDLK_F12:
+							sprintf(filenameBuffer, "%i_%i.bmp", (int)time(NULL),SDL_GetTicks());	// prints screenshot with name format <date>_<getTicks>.bmp
+							SDL_SaveBMP(mainSurface,filenameBuffer);
+							break;
+						}
+					break;
+			}
+		}
+
+		for(_cycleIt = 0; _cycleIt < SQUARES_PER_CYCLE; _cycleIt++) {
+			_changedState = 0;
+			randomRect.w = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
+			randomRect.h = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
+			randomRect.x = rand()%(srcSurface->w - randomRect.w);
+			randomRect.y = rand()%(srcSurface->h - randomRect.h);
+
+			_r = rand()%255;
+			_g = rand()%255;
+			_b = rand()%255;
+
+			testSum = 0;
+			mainSum = 0;
+
+			for(_rangeY = (randomRect.y + randomRect.h), ih = randomRect.y; ih < _rangeY; ih++) {
+				for(_rangeX = (randomRect.x + randomRect.w), iw = randomRect.x; iw < _rangeX; iw++) {
+					SDL_GetRGB(((Uint32*)srcSurface->pixels)[ih * srcSurface->w + iw],
+						srcSurface->format,
+						&sr,&sg,&sb);
+
+					SDL_GetRGB(((Uint32*)mainSurface->pixels)[ih * srcSurface->w + iw],
+						mainSurface->format,
+						&mr,&mg,&mb);
+
+					testSum += abs(sr - _r) + abs(sg - _g) + abs(sb - _b);
+					mainSum += abs(sr - mr) + abs(sg - mg) + abs(sb - mb);
+				}
+			}
+
+			if(testSum < mainSum) {
+				SDL_FillRect(mainSurface, &randomRect, SDL_MapRGB(mainSurface->format, _r, _g, _b));
+				_changedState = 1;
+			}
+		}
+
+		if(_changedState) render();		// only render on update
 	}
 
 	SDLQuit();
