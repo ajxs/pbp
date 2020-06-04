@@ -1,3 +1,12 @@
+/**
+ * @file pbp.h
+ * @author Anthony (ajxs [at] panoptic.online)
+ * @brief Main program header.
+ * Contains global variables needed for the application.
+ * @version 1.1
+ * @date 2020
+ */
+
 #ifndef PBP_H
 #define PBP_H
 
@@ -8,6 +17,8 @@
 #define SQUARES_PER_CYCLE 50
 #define SQUARE_MAX_SIZE 5
 #define SQUARE_MIN_SIZE 1
+/** The maximum size to display each image. */
+#define MAX_DISPLAY_SIZE 500
 
 /**
  * @brief Main window.

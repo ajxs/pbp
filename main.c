@@ -1,3 +1,12 @@
+/**
+ * @file main.c
+ * @author Anthony (ajxs [at] panoptic.online)
+ * @brief Main program.
+ * Contains the main application source.
+ * @version 1.1
+ * @date 2020
+ */
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -9,7 +18,8 @@
 #include "pbp.h"
 
 /**
- * cleanup_program
+ * @brief Cleanup program memory.
+ * Releases all allocated memory prior to program exit.
  */
 static void cleanup_program(void);
 
@@ -17,7 +27,7 @@ static void cleanup_program(void);
  * @brief Initialises SDL.
  * Initialises all of the required SDL2 subsystems.
  */
-static int initialise_sdl(void);
+static bool initialise_sdl(void);
 
 /**
  * @brief Prints an error to STDERR.
@@ -30,19 +40,23 @@ static void print_error(const char *fmt, ...);
  * Function pointer for the main render function so that the program only uses
  * the slower BlitScaled if the Surfaces are actually scaled.
  */
-static void (*render)(SDL_Rect *rect);
+static void (*render)(SDL_Surface *source,
+	SDL_Rect *rect);
 
 /**
- * @brief
- *
+ * @brief Scaled rendering function.
+ * Used when the image to be blitted is too large to display in the main window
+ * and requires additional scaling.
  */
-static void render_scaled(SDL_Rect *rect);
+static void render_scaled(SDL_Surface *source,
+	SDL_Rect *rect);
 
 /**
- * @brief
- *
+ * @brief Rendering function.
+ * Used to blit the destination image to the screen.
  */
-static void render_normal(SDL_Rect *rect);
+static void render_normal(SDL_Surface *source,
+	SDL_Rect *rect);
 
 /**
  * cleanup_program
@@ -74,11 +88,11 @@ static void print_error(const char *fmt, ...)
 /**
  * initialise_sdl
  */
-static int initialise_sdl(void)
+static bool initialise_sdl(void)
 {
 	if(SDL_Init(SDL_INIT_VIDEO) != 0) {
 		print_error("SDL_Init error: %s\n",SDL_GetError());
-		return 0;
+		return false;
 	}
 
 	main_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED,
@@ -86,19 +100,25 @@ static int initialise_sdl(void)
 	main_screen = SDL_GetWindowSurface(main_window);
 	if(!main_screen || !main_window) {
 		print_error("initialise_sdl: error: %s\n", SDL_GetError());
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 
 /*
  * render_scaled
  */
-static void render_scaled(SDL_Rect *rect)
+static void render_scaled(SDL_Surface *source,
+	SDL_Rect *rect)
 {
-	SDL_BlitScaled(destination_surface, NULL, main_screen, rect);
+	if(SDL_BlitScaled(source, NULL, main_screen, rect) != 0) {
+		print_error("Error rendering surface: %s\n", SDL_GetError());
+		cleanup_program();
+		exit(EXIT_FAILURE);
+	}
+
 	SDL_UpdateWindowSurface(main_window);
 }
 
@@ -106,9 +126,15 @@ static void render_scaled(SDL_Rect *rect)
 /**
  * render_normal
  */
-static void render_normal(SDL_Rect *rect)
+static void render_normal(SDL_Surface *source,
+	SDL_Rect *rect)
 {
-	SDL_BlitSurface(destination_surface, NULL, main_screen, rect);
+	if(SDL_BlitSurface(source, NULL, main_screen, rect) != 0) {
+		print_error("Error rendering surface: %s\n", SDL_GetError());
+		cleanup_program();
+		exit(EXIT_FAILURE);
+	}
+
 	SDL_UpdateWindowSurface(main_window);
 }
 
@@ -203,31 +229,41 @@ int main(int argc,
 		exit(EXIT_FAILURE);
 	}
 
-	destination_surface = SDL_CreateRGBSurface(0, source_surface->w, source_surface->h, 32, 0, 0, 0, 0);
+	// Create destination surface.
+	destination_surface = SDL_CreateRGBSurface(0, source_surface->w, source_surface->h,
+		32, 0, 0, 0, 0);
+
+	// Convert the source surface to match the destination surface format.
 	source_surface = SDL_ConvertSurface(source_surface, destination_surface->format, 0);
 
-	source_surface_rect.x = 10;
-	source_surface_rect.y = 10;
+	source_surface_rect.x = 8;
+	source_surface_rect.y = 8;
 
-	// Scale image to fit on screen.
-	if(source_surface->w > 500) {
-		source_surface_rect.w = 500;
-		source_surface_rect.h = (source_surface->h * (500.0f / source_surface->w));
+	// If the image is larger than roughly half of the screen size, then
+	// scale image to fit on screen.
+	if(source_surface->w > MAX_DISPLAY_SIZE) {
+		source_surface_rect.w = MAX_DISPLAY_SIZE;
+		source_surface_rect.h = source_surface->h *
+			((float)MAX_DISPLAY_SIZE / source_surface->w);
+
 		render = render_scaled;
 	} else {
 		source_surface_rect.w = source_surface->w;
 		source_surface_rect.h = source_surface->h;
+
 		render = render_normal;
 	}
 
-	destination_surface_rect.x = 20 + source_surface_rect.w;
-	destination_surface_rect.y = 10;
+	destination_surface_rect.x = 16 + source_surface_rect.w;
+	destination_surface_rect.y = 8;
 
 	destination_surface_rect.w = source_surface_rect.w;
 	destination_surface_rect.h = source_surface_rect.h;
 
+	// Render source image to screen.
 	// blit source_surface once here since it never actually changes.
-	SDL_BlitSurface(source_surface, NULL, main_screen, &source_surface_rect);
+	render(source_surface, &source_surface_rect);
+
 
 	while(!exit_flag) {
 		// poll input.
@@ -313,7 +349,7 @@ int main(int argc,
 
 		// only re-render on update.
 		if(destination_img_updated) {
-			render(&destination_surface_rect);
+			render(destination_surface, &destination_surface_rect);
 		}
 	}
 
