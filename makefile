@@ -1,17 +1,34 @@
-CC=gcc
-SDL_CFLAGS := $(shell sdl2-config --cflags)
-SDL_LDFLAGS := $(shell sdl2-config --libs) -lSDL2_image
-SOURCES=main.c
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=pbp
+.POSIX:
+.DELETE_ON_ERROR:
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
 
-all: $(SOURCES) $(EXECUTABLE)
+.PHONY: clean
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(OBJECTS) $(SDL_LDFLAGS) -o $@
+CC       := gcc
+CFLAGS   := -std=gnu11    \
+	-O2                     \
+	-g                      \
+	-Wall                   \
+	-Wextra                 \
+	-Wmissing-prototypes    \
+	-Wstrict-prototypes
 
-.c .o:
-	$(CC) $(SDL_CFLAGS) $< -o $@
+SDL_CFLAGS  := ${shell sdl2-config --cflags}
+SDL_LDLIBS  := ${shell sdl2-config --libs} -lSDL2_image
+SOURCES     := main.c
+OBJECTS     := ${SOURCES:.c=.o}
+
+BINARY      := pbp
+
+all: ${BINARY}
+
+${BINARY}: ${OBJECTS}
+	${CC} ${CFLAGS} ${OBJECTS} ${SDL_LDLIBS} -o $@
+
+%.o: %.c
+	${CC} -c $< -o $@ ${CFLAGS} ${SDL_CFLAGS}
 
 clean:
-	rm *.o
+	rm -f ${BINARY}
+	rm -f *.o

@@ -1,51 +1,69 @@
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include "pbp.h"
 
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 768
-#define SQUARES_PER_CYCLE 50	// number of square plotting cycles per frame.
-#define SQUARE_MAX_SIZE 5
-#define SQUARE_MIN_SIZE 1
+/**
+ * cleanup_program
+ */
+static void cleanup_program(void);
 
-Uint8 _quit = 0;
+/**
+ * @brief Initialises SDL.
+ * Initialises all of the required SDL2 subsystems.
+ */
+static int initialise_sdl(void);
 
-SDL_Window *_window = NULL;
-SDL_Event _event;
+/**
+ * @brief Prints an error to STDERR.
+ * Used to log any error encountered to the console.
+ */
+static void print_error(const char *fmt, ...);
 
-SDL_Surface *_screen;
-SDL_Surface *srcSurface, *mainSurface;
+/**
+ * @brief Render function pointer.
+ * Function pointer for the main render function so that the program only uses
+ * the slower BlitScaled if the Surfaces are actually scaled.
+ */
+static void (*render)(SDL_Rect *rect);
 
-SDL_Rect srcSurface_rect, mainSurface_rect, randomRect;
+/**
+ * @brief
+ *
+ */
+static void render_scaled(SDL_Rect *rect);
 
-Uint16 mainSum, testSum;
-Uint8 _r, _g, _b, sr, sg, sb, mr, mg, mb;
-Uint8 _cycleIt;	// iterator - cycles per frame.
-Uint16 _rangeX, _rangeY;
-Uint8 _changedState = 0;
+/**
+ * @brief
+ *
+ */
+static void render_normal(SDL_Rect *rect);
 
-Uint16 iw, ih;
+/**
+ * cleanup_program
+ */
+static void cleanup_program(void)
+{
+	// Free surfaces.
+	SDL_FreeSurface(source_surface);
+	SDL_FreeSurface(destination_surface);
+	SDL_FreeSurface(main_screen);
 
-char filenameBuffer[20];
-
-void SDLFreeSurfaces() {
-	SDL_FreeSurface(srcSurface);
-	SDL_FreeSurface(mainSurface);
-	SDL_FreeSurface(_screen);
-};
-
-
-void SDLQuit() {
-	SDLFreeSurfaces();
-	SDL_DestroyWindow(_window);
+	SDL_DestroyWindow(main_window);
 	SDL_Quit();
 };
 
 
-void SDLerror(const char *fmt, ...) {
+/**
+ * print_error
+ */
+static void print_error(const char *fmt, ...)
+{
 	va_list args;
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
@@ -53,136 +71,253 @@ void SDLerror(const char *fmt, ...) {
 };
 
 
-int SDLinit() {
+/**
+ * initialise_sdl
+ */
+static int initialise_sdl(void)
+{
 	if(SDL_Init(SDL_INIT_VIDEO) != 0) {
-		SDLerror("SDL_Init error: %s\n",SDL_GetError());
+		print_error("SDL_Init error: %s\n",SDL_GetError());
 		return 0;
 	}
 
-	_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-	_screen = SDL_GetWindowSurface(_window);
-	if(!_screen || !_window) {
-		SDLerror("SDLinit: error: %s\n", SDL_GetError());
+	main_window = SDL_CreateWindow("pbp", SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+	main_screen = SDL_GetWindowSurface(main_window);
+	if(!main_screen || !main_window) {
+		print_error("initialise_sdl: error: %s\n", SDL_GetError());
 		return 0;
 	}
 
 	return 1;
-};
+}
 
 
-void (*render)();	//function pointer for render so that the program only uses the slower BlitScaled if the Surfaces are actually scaled.
+/*
+ * render_scaled
+ */
+static void render_scaled(SDL_Rect *rect)
+{
+	SDL_BlitScaled(destination_surface, NULL, main_screen, rect);
+	SDL_UpdateWindowSurface(main_window);
+}
 
-void render_scaled() {
-	SDL_BlitScaled(mainSurface,NULL,_screen,&mainSurface_rect);
-	SDL_UpdateWindowSurface(_window);
-};
 
-void render_normal() {
-	SDL_BlitSurface(mainSurface,NULL,_screen,&mainSurface_rect);
-	SDL_UpdateWindowSurface(_window);
-};
+/**
+ * render_normal
+ */
+static void render_normal(SDL_Rect *rect)
+{
+	SDL_BlitSurface(destination_surface, NULL, main_screen, rect);
+	SDL_UpdateWindowSurface(main_window);
+}
 
-int main(int argc, char *argv[]) {
-	if(!SDLinit()) {
-		SDLQuit();
-		exit(1);
-	}
+
+/**
+ * main
+ */
+int main(int argc,
+	char *argv[])
+{
+	/**
+	 * @brief Tracks whether the destination image has updated.
+	 * Tracks whether the plotting process has updated. This boolean value is used
+	 * to check whether the screen should be updated. This is used since there
+	 * may be dozens of rectangles plotted per iteration. The destination surface
+	 * does not need to be re-rendered each time.
+	 */
+	bool destination_img_updated = false;
+	/**
+	 * @brief Sentinel value for program exit.
+	 * Used to store whether the signal has been given to quit the program.
+	 */
+	bool exit_flag = false;
+	/**
+	 * @brief Main SDL event element.
+	 * Used to contain any events that occur.
+	 */
+	SDL_Event main_event;
+	/**
+	 * @brief Pixel summation values
+	 * Used to calculate the heuristic distance between the current progress and
+	 * the next tested iteration.
+	 */
+	uint16_t current_rect_sum = 0;
+	uint16_t test_rect_sum = 0;
+	/**
+	 * @brief Output filename buffer.
+	 * Used to store the name of the output file when a screenshot is taken.
+	 */
+	char output_filename_buf[20];
+	/**
+	 * @brief The upper bound of the rectangle of pixels being checked.
+	 * These values store the upper bound of the rectangle being checked.
+	 * Essentially the x,y positions plus width, height.
+	 */
+	uint32_t upper_bound_x = 0;
+	uint32_t upper_bound_y = 0;
+	/**
+	 * @brief The randomly plotted colour.
+	 * This variable stores the colour for the randomly plotted rectangle.
+	 */
+	SDL_Colour random_colour;
+	/**
+	 * @brief The source pixel colour.
+	 * This variable stores the colour of the current pixel being checked
+	 * from the source image.
+	 */
+	SDL_Colour source_colour;
+	/**
+	 * @brief The destination pixel colour.
+	 * This variable stores the colour of the current pixel being checked
+	 * in the destination image surface.
+	 */
+	SDL_Colour dest_colour;
+	/**
+	 * @brief The randomly plotted rectangle.
+	 * This variable stores the dimensions and positions of the randomly plotted
+	 * rectangle on the destination canvas.
+	 */
+	SDL_Rect randomRect;
+	/**
+	 * @brief Source and destination image rectangles.
+	 * Used to track the image boundaries of the source and destination images.
+	 */
+	SDL_Rect source_surface_rect;
+	SDL_Rect destination_surface_rect;
 
 	if(argc < 2) {
-		SDLerror("No filename argument supplied!\nPlease use the input filename as the first argument.\n");
-		SDLQuit();
-		exit(1);
+		print_error("No filename argument supplied!\n"
+			"Please use the input filename as the first argument.\n");
+		exit(EXIT_FAILURE);
 	}
 
-	if(!(srcSurface = IMG_Load(argv[1]), srcSurface)) {
-		SDLerror("File could not be opened!\n");
-		SDLQuit();
-		exit(1);
+	if(!initialise_sdl()) {
+		cleanup_program();
+		exit(EXIT_FAILURE);
 	}
 
-	mainSurface = SDL_CreateRGBSurface(0, srcSurface->w, srcSurface->h, 32, 0, 0, 0, 0);
-	srcSurface = SDL_ConvertSurface(srcSurface, mainSurface->format, 0);
+	if(!(source_surface = IMG_Load(argv[1]), source_surface)) {
+		print_error("File could not be opened!\n");
+		cleanup_program();
+		exit(EXIT_FAILURE);
+	}
 
-	srcSurface_rect.x = 10;
-	srcSurface_rect.y = 10;
+	destination_surface = SDL_CreateRGBSurface(0, source_surface->w, source_surface->h, 32, 0, 0, 0, 0);
+	source_surface = SDL_ConvertSurface(source_surface, destination_surface->format, 0);
 
-	if(srcSurface->w > 500) {	// image scaling to fit on screen.
-		srcSurface_rect.w = 500;
-		srcSurface_rect.h = (srcSurface->h * (500.0f / srcSurface->w));
+	source_surface_rect.x = 10;
+	source_surface_rect.y = 10;
+
+	// Scale image to fit on screen.
+	if(source_surface->w > 500) {
+		source_surface_rect.w = 500;
+		source_surface_rect.h = (source_surface->h * (500.0f / source_surface->w));
 		render = render_scaled;
 	} else {
-		srcSurface_rect.w = srcSurface->w;
-		srcSurface_rect.h = srcSurface->h;
+		source_surface_rect.w = source_surface->w;
+		source_surface_rect.h = source_surface->h;
 		render = render_normal;
 	}
 
-	mainSurface_rect.x = 20 + srcSurface_rect.w;
-	mainSurface_rect.y = 10;
+	destination_surface_rect.x = 20 + source_surface_rect.w;
+	destination_surface_rect.y = 10;
 
-	mainSurface_rect.w = srcSurface_rect.w;
-	mainSurface_rect.h = srcSurface_rect.h;
+	destination_surface_rect.w = source_surface_rect.w;
+	destination_surface_rect.h = source_surface_rect.h;
 
-	SDL_BlitSurface(srcSurface,NULL,_screen,&srcSurface_rect);		// blit srcSurface once here since it never actually changes
+	// blit source_surface once here since it never actually changes.
+	SDL_BlitSurface(source_surface, NULL, main_screen, &source_surface_rect);
 
-	while(!_quit) {
-		while(SDL_PollEvent(&_event)) {		// poll input
-			switch(_event.type) {
+	while(!exit_flag) {
+		// poll input.
+		while(SDL_PollEvent(&main_event)) {
+			switch(main_event.type) {
 				case SDL_QUIT:
-					_quit = 1;
+					exit_flag = true;
 					break;
 				case SDL_KEYDOWN:
-					switch(_event.key.keysym.sym) {
+					switch(main_event.key.keysym.sym) {
 						case SDLK_ESCAPE:
-							_quit = 1;
+							exit_flag = true;
 							break;
 						case SDLK_F12:
-							sprintf(filenameBuffer, "%i_%i.bmp", (int)time(NULL),SDL_GetTicks());	// prints screenshot with name format <date>_<getTicks>.bmp
-							SDL_SaveBMP(mainSurface,filenameBuffer);
+							// prints screenshot with name format <date>_<getTicks>.bmp
+							sprintf(output_filename_buf, "%i_%i.bmp", (int)time(NULL), SDL_GetTicks());
+							SDL_SaveBMP(destination_surface, output_filename_buf);
 							break;
 						}
 					break;
+				default:
+					break;
 			}
 		}
 
-		for(_cycleIt = 0; _cycleIt < SQUARES_PER_CYCLE; _cycleIt++) {
-			_changedState = 0;
-			randomRect.w = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
-			randomRect.h = SQUARE_MIN_SIZE+(rand()%SQUARE_MAX_SIZE);
-			randomRect.x = rand()%(srcSurface->w - randomRect.w);
-			randomRect.y = rand()%(srcSurface->h - randomRect.h);
+		for(uint8_t i = 0; i < SQUARES_PER_CYCLE; i++) {
+			// Reset 'updated' flag variable.
+			destination_img_updated = false;
 
-			_r = rand()%255;
-			_g = rand()%255;
-			_b = rand()%255;
+			// Get random rectangle dimensions.
+			randomRect.w = SQUARE_MIN_SIZE + (rand() % SQUARE_MAX_SIZE);
+			randomRect.h = SQUARE_MIN_SIZE + (rand() % SQUARE_MAX_SIZE);
 
-			testSum = 0;
-			mainSum = 0;
+			// Get random rectangle position.
+			randomRect.x = rand() % (source_surface->w - randomRect.w);
+			randomRect.y = rand() % (source_surface->h - randomRect.h);
 
-			for(_rangeY = (randomRect.y + randomRect.h), ih = randomRect.y; ih < _rangeY; ih++) {
-				for(_rangeX = (randomRect.x + randomRect.w), iw = randomRect.x; iw < _rangeX; iw++) {
-					SDL_GetRGB(((Uint32*)srcSurface->pixels)[ih * srcSurface->w + iw],
-						srcSurface->format,
-						&sr,&sg,&sb);
+			// Get random rectangle colour.
+			random_colour.r = rand() % 255;
+			random_colour.g = rand() % 255;
+			random_colour.b = rand() % 255;
 
-					SDL_GetRGB(((Uint32*)mainSurface->pixels)[ih * srcSurface->w + iw],
-						mainSurface->format,
-						&mr,&mg,&mb);
+			// Reset pixel sum values.
+			test_rect_sum = 0;
+			current_rect_sum = 0;
 
-					testSum += abs(sr - _r) + abs(sg - _g) + abs(sb - _b);
-					mainSum += abs(sr - mr) + abs(sg - mg) + abs(sb - mb);
+			// Set range values.
+			upper_bound_y = (randomRect.y + randomRect.h);
+			upper_bound_x = (randomRect.x + randomRect.w);
+
+			for(uint32_t ih = randomRect.y; ih < upper_bound_y; ih++) {
+				for(uint32_t iw = randomRect.x; iw < upper_bound_x; iw++) {
+					// Get the colour values from the source pixel.
+					SDL_GetRGB(((Uint32*)source_surface->pixels)[ih * source_surface->w + iw],
+						source_surface->format, &source_colour.r, &source_colour.g, &source_colour.b);
+
+					// Get the colour values from the destination pixel.
+					SDL_GetRGB(((Uint32*)destination_surface->pixels)[ih * source_surface->w + iw],
+						destination_surface->format, &dest_colour.r, &dest_colour.g, &dest_colour.b);
+
+					// Add to the test rectangle sum.
+					test_rect_sum += abs(source_colour.r - random_colour.r) +
+						abs(source_colour.g - random_colour.g) + abs(source_colour.b - random_colour.b);
+
+					// Add to the current rectangle sum.
+					current_rect_sum += abs(source_colour.r - dest_colour.r) +
+						abs(source_colour.g - dest_colour.g) + abs(source_colour.b - dest_colour.b);
 				}
 			}
 
-			if(testSum < mainSum) {
-				SDL_FillRect(mainSurface, &randomRect, SDL_MapRGB(mainSurface->format, _r, _g, _b));
-				_changedState = 1;
+			// Check distance heuristic.
+			// Check if the sum of the differences in pixels is lower in the random
+			// rectangle being tested than in the current best effort.
+			if(test_rect_sum < current_rect_sum) {
+				SDL_FillRect(destination_surface, &randomRect, SDL_MapRGB(destination_surface->format,
+					random_colour.r, random_colour.g, random_colour.b));
+
+				// Since we've changed the destination surface, instruct the program
+				// to re-render the destination image.
+				destination_img_updated = true;
 			}
 		}
 
-		if(_changedState) render();		// only render on update
+		// only re-render on update.
+		if(destination_img_updated) {
+			render(&destination_surface_rect);
+		}
 	}
 
-	SDLQuit();
+	cleanup_program();
 	return 0;
 
 };
