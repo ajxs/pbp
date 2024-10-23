@@ -1,114 +1,125 @@
-var img_width, img_height;
+let imageWidth = 0;
+let imageHeight = 0;
 
-var srcCanvas, mainCanvas;
-var srcContext, mainContext;
+let sourceCanvas = null;
+let canvas_main = null;
+let sourceContext = null;
+let mainContext = null;
 
-var urlCreator = window.URL || window.webkitURL;
-
-var _x,_y, _width, _height, _color, _srcData, _mainData, _testSum, _mainSum, _dataLength;
-var _r, _g, _b;
-
-var _squaresPerCycle = 20;	// number of square plotting cycles per frame.
-var _squareMaxSize = 5;
-var _squareMinSize = 1;
-
-var callFrame = window.requestAnimationFrame ||
-		window.webkitRequestAnimationFrame ||
-		window.mozRequestAnimationFrame    ||
-		window.oRequestAnimationFrame      ||
-		window.msRequestAnimationFrame     ||
-		null;
+/**
+ * The number of square plotting cycles per frame.
+ * Increasing this number will result in faster painting of the image, but
+ * higher numbers will have a noticeable performance on the browser.
+ */
+const squaresPerFrame = 24;
+const squareMaxSize = 5;
+const squareMinSize = 1;
 
 
-function main_init() {
-	srcCanvas = document.getElementById('srcCanvas');
-	mainCanvas = document.getElementById('mainCanvas');
-	
-	srcContext = srcCanvas.getContext('2d');
-	mainContext = mainCanvas.getContext('2d');
+function initialise() {
+	sourceCanvas = document.getElementById('canvas_source');
+	canvas_main = document.getElementById('canvas_main');
 
-	if(!callFrame) {
-		console.log("main: frame handler error: No frame handler!");
-		return;
-	}
-	
+	sourceContext = sourceCanvas.getContext('2d');
+	mainContext = canvas_main.getContext('2d');
+
 	handleImgSelect(document.getElementById("img_5"));
-	
 };
+
 
 function handleFileInput() {
 	document.getElementById('fileInput').click();
 };
 
-function handleImgSelect(img) {
-	img_width = img.naturalWidth;
-	img_height = img.naturalHeight;
 
-	srcCanvas.width = img_width;
-	srcCanvas.height = img_height;
-	mainCanvas.width = img_width;
-	mainCanvas.height = img_height;
-	
-	srcContext.drawImage(img, 0, 0);
-	
-	var main_loop = function() {
+function handleImgSelect(img) {
+	imageWidth = img.naturalWidth;
+	imageHeight = img.naturalHeight;
+
+	sourceCanvas.width = imageWidth;
+	sourceCanvas.height = imageHeight;
+	canvas_main.width = imageWidth;
+	canvas_main.height = imageHeight;
+
+	sourceContext.drawImage(img, 0, 0);
+
+	const mainLoop = function () {
 		renderFrame();
-		callFrame(main_loop);
+		window.requestAnimationFrame(mainLoop);
 	};
-	
+
 	mainContext.fillStyle = "#000000";
-	mainContext.fillRect(0,0,img_width,img_height);
-	
-	callFrame(main_loop);
-	
+	mainContext.fillRect(0, 0, imageWidth, imageHeight);
+
+	window.requestAnimationFrame(mainLoop);
 };
 
 
 function loadFile(files) {
-	if(!files[0].type.match('image.*'))  return false;
-	
-	var img = new Image();
-	img.onload = function() {
+	if (!files[0].type.match('image.*')) {
+		return false;
+	}
+
+	let img = new Image();
+	img.onload = function () {
 		handleImgSelect(img);
 	};
-	
-	img.src = urlCreator.createObjectURL(files[0]);	
-	
+
+	img.src = URL.createObjectURL(files[0]);
 };
 
 
 function renderFrame() {
-	for(var k = 0; k < _squaresPerCycle; k++) {
-		_x = (Math.random()*img_width)|0;
-		_y = (Math.random()*img_height)|0;
+	for (let k = 0; k < squaresPerFrame; k++) {
+		// Randomly select the origin, and size of the square.
+		const squareOriginX = (Math.random() * imageWidth) | 0;
+		const squareOriginY = (Math.random() * imageHeight) | 0;
 
-		_width = _squareMinSize+(Math.random()*_squareMaxSize)|0;
-		_height = _squareMinSize+(Math.random()*_squareMaxSize)|0;
+		const squareWidth = squareMinSize + (Math.random() * squareMaxSize) | 0;
+		const squareHeight = squareMinSize + (Math.random() * squareMaxSize) | 0;
 
-		_r = (Math.random()*255)|0;
-		_g = (Math.random()*255)|0;
-		_b = (Math.random()*255)|0;
+		// Randomly select a colour for the square.
+		const r = (Math.random() * 255) | 0;
+		const g = (Math.random() * 255) | 0;
+		const b = (Math.random() * 255) | 0;
 
-		_srcData = srcContext.getImageData(_x,_y,_width,_height);
-		_mainData = mainContext.getImageData(_x,_y,_width,_height);
-		
-		_testSum = 0;
-		_mainSum = 0;	
+		// Get the pixel data for the randomly selected square.
+		const sourceImageData = sourceContext.getImageData(
+			squareOriginX,
+			squareOriginY,
+			squareWidth,
+			squareHeight
+		);
 
-		_dataLength = _srcData.data.length;
-		for(var i = 0; i < _dataLength; i+=4) {
-			_testSum += Math.abs(_srcData.data[i] - _r);
-			_testSum += Math.abs(_srcData.data[i+1] - _g);
-			_testSum += Math.abs(_srcData.data[i+2] - _b);
+		const mainImageData = mainContext.getImageData(
+			squareOriginX,
+			squareOriginY,
+			squareWidth,
+			squareHeight
+		);
 
-			_mainSum += Math.abs(_srcData.data[i] - _mainData.data[i]);
-			_mainSum += Math.abs(_srcData.data[i+1] - _mainData.data[i+1]);
-			_mainSum += Math.abs(_srcData.data[i+2] - _mainData.data[i+2]);
+		let testTotalDeviation = 0;
+		let mainTotalDeviation = 0;
+
+		const totalSquarePixelDataLength = sourceImageData.data.length;
+
+		// Sum the the total deviation between the red, green and blue channels of the
+		// pixels in the source image, and the pixels of the random square being plotted.
+		// If the pixels in the test square have less deviation from the source image than
+		// the current randomly plotted pixels, then plot the test square.
+		for (let i = 0; i < totalSquarePixelDataLength; i += 4) {
+			testTotalDeviation += Math.abs(sourceImageData.data[i] - r)
+				+ Math.abs(sourceImageData.data[i + 1] - g)
+				+ Math.abs(sourceImageData.data[i + 2] - b);
+
+			mainTotalDeviation += Math.abs(sourceImageData.data[i] - mainImageData.data[i])
+				+ Math.abs(sourceImageData.data[i + 1] - mainImageData.data[i + 1])
+				+ Math.abs(sourceImageData.data[i + 2] - mainImageData.data[i + 2]);
 		}
-		
-		if(_testSum < _mainSum) {
-			mainContext.fillStyle = "rgb("+_r+","+_g+","+_b+")";
-			mainContext.fillRect(_x,_y,_width,_height);
+
+		if (testTotalDeviation < mainTotalDeviation) {
+			mainContext.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+			mainContext.fillRect(squareOriginX, squareOriginY, squareWidth, squareHeight);
 		}
 	}
 };

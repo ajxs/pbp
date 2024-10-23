@@ -1,78 +1,73 @@
-.clearFix:after {
-  content: "";
-  display: table;
-  clear: both;
+body {
+	box-sizing: border-box;
+	max-width: 1024px;
+	margin: 0 auto;
 }
 
-#imgContainer {
-	margin-top: 20px;
+.clearfix:after {
+	content: "";
+	display: table;
+	clear: both;
+}
+
+#canvas_container {
 	margin-bottom: 20px;
-	width: 1024px;
 }
 
-
-#imgContainer canvas {
-	max-width: 500px;
-	max-height: 500px;
+canvas {
+	max-width: 480px;
+	max-height: 480px;
 	margin-right: 10px;
-    -webkit-transition: all 1s;
-    transition: all 1s;
 }
 
 #header {
 	font-family: 'Oswald', sans-serif;
 	font-size: 64px;
 	letter-spacing: -4px;
+	margin-bottom: 20px;
 }
-
 
 #header a {
 	color: #000000;
 	text-decoration: none;
-    -webkit-transition: all 0.25s;
-    transition: all 0.25s;
 }
 
 #header a:hover {
-	color: rgb(100,100,100);
+	color: rgb(100, 100, 100);
 }
 
-
-.sectionTitle {
+h1 {
 	font-family: 'Oswald', sans-serif;
 	font-size: 24px;
+	margin: 0 0 10px;
+}
+
+h2 {
+	font-family: 'Oswald', sans-serif;
+	font-size: 20px;
+	margin: 0 0 10px;
 }
 
 .section {
-	width: 1024px;
-	margin-top: 20px;
-	background-color: rgb(230,230,230);
-	font-family: 'arial', sans-serif;
-	font-size: 14px;
-	letter-spacing: normal;	
-	padding: 6px;
+	margin-bottom: 20px;
+	background-color: rgb(230, 230, 230);
+	letter-spacing: normal;
+	padding: 8px;
 }
 
 .section a {
-	color: rgb(20,20,20);
+	color: rgb(20, 20, 20);
 }
 
 .section a:hover {
-	color: rgb(60,60,60);
+	color: rgb(60, 60, 60);
 }
 
-
-
-#controls {
-
+#sample_images {
+	margin-bottom: 20px;
 }
 
-#controls_images {
-	margin-top: 10px;
-	margin-bottom: 10px;
-}
-
-#controls_images img {
+#sample_images img {
 	border: solid 3px #000000;
 	float: left;
 	max-width: 160px;
@@ -82,28 +77,23 @@
 	cursor: pointer;
 }
 
-#controls_file {
-	margin-top: 20px;
-	margin-bottom: 10px;
+#sample_images img:hover {
+	border: solid 3px rgb(60, 60, 60);
 }
 
-#browseButton {
-	margin-top: 20px;
-	margin-left: 10px;
+#button_browse {
+	color: white;
+	background-color: black;
 	font-family: 'Oswald', sans-serif;
-	font-size: 18px;
-	color: rgb(230,230,230);
-	width: 100px;
-	padding: 4px;
+	font-size: 20px;
+	display: inline-block;
+	padding: 6px 12px;
 	text-align: center;
-	background-color: rgb(60,60,60);
 	cursor: pointer;
-    -webkit-transition: all 0.25s;
-    transition: all 0.25s;
 }
 
-#browseButton:hover {
-	background-color: rgb(120,120,120);
+#button_browse:hover {
+	background-color: rgb(60, 60, 60);
 }
 
 #fileInfo {
